@@ -620,8 +620,6 @@ class _MarkerClusterLayerState extends State<MarkerClusterLayer>
     return () async {
       if (_animating) return;
 
-      widget.options.onClusterTap?.call(cluster);
-
       if (!widget.options.zoomToBoundsOnClick) {
         if (widget.options.spiderfyCluster) {
           if (spiderfyCluster != null) {
@@ -651,19 +649,13 @@ class _MarkerClusterLayerState extends State<MarkerClusterLayer>
       ).fit(widget.mapCamera);
 
       // check if children can un-cluster
-      final cannotDivide = cluster.markers.every((marker) =>
-              marker.parent!.zoom == _maxZoom &&
-              marker.parent == cluster.markers.first.parent) ||
+      final cannotDivide = cluster.markers.every((marker) => marker.parent!.zoom == _maxZoom && marker.parent == cluster.markers.first.parent) ||
           (dest.zoom == _currentZoom && _currentZoom == opt.maxZoom);
 
       if (cannotDivide) {
         //dest = CenterZoom(center: dest.center, zoom: _currentZoom.toDouble());
         dest = MapCamera(
-            crs: dest.crs,
-            center: dest.center,
-            zoom: _currentZoom.toDouble(),
-            rotation: dest.rotation,
-            nonRotatedSize: dest.nonRotatedSize);
+            crs: dest.crs, center: dest.center, zoom: _currentZoom.toDouble(), rotation: dest.rotation, nonRotatedSize: dest.nonRotatedSize);
 
         if (spiderfyCluster != null) {
           if (spiderfyCluster == cluster) {
@@ -679,30 +671,28 @@ class _MarkerClusterLayerState extends State<MarkerClusterLayer>
         _showPolygon(cluster.markers.map((m) => m.point).toList());
       }
 
-      final latTween =
-          Tween<double>(begin: center.latitude, end: dest.center.latitude);
-      final lonTween =
-          Tween<double>(begin: center.longitude, end: dest.center.longitude);
-      final zoomTween =
-          Tween<double>(begin: widget.mapCamera.zoom, end: dest.zoom);
+      final latTween = Tween<double>(begin: center.latitude, end: dest.center.latitude);
+      final lonTween = Tween<double>(begin: center.longitude, end: dest.center.longitude);
+      final zoomTween = Tween<double>(begin: widget.mapCamera.zoom, end: dest.zoom);
 
-      final isAlreadyFit = latTween.begin == latTween.end &&
-          lonTween.begin == lonTween.end &&
-          zoomTween.begin == zoomTween.end;
+      final isAlreadyFit = latTween.begin == latTween.end && lonTween.begin == lonTween.end && zoomTween.begin == zoomTween.end;
 
       if (isAlreadyFit) {
-        if (cannotDivide && widget.options.spiderfyCluster) {
+        if (!cannotDivide || !widget.options.spiderfyCluster) {
+          return;
+        }
+
+        if (cluster.markers.length < 5) {
           _spiderfy(cluster);
+        } else {
+          widget.options.onClusterTap?.call(cluster);
         }
         return;
       }
 
-      final animation = CurvedAnimation(
-          parent: _fitBoundController,
-          curve: widget.options.animationsOptions.fitBoundCurves);
+      final animation = CurvedAnimation(parent: _fitBoundController, curve: widget.options.animationsOptions.fitBoundCurves);
 
-      final listener = _centerMarkerListener(animation, latTween, lonTween,
-          zoomTween: zoomTween);
+      final listener = _centerMarkerListener(animation, latTween, lonTween, zoomTween: zoomTween);
 
       _fitBoundController.addListener(listener);
 
@@ -711,9 +701,16 @@ class _MarkerClusterLayerState extends State<MarkerClusterLayer>
           ..removeListener(listener)
           ..reset();
 
-        if (cannotDivide && widget.options.spiderfyCluster) {
-          _spiderfy(cluster);
+        if (!cannotDivide || !widget.options.spiderfyCluster) {
+          return;
         }
+
+        if (cluster.markers.length < 5) {
+          _spiderfy(cluster);
+        } else {
+          widget.options.onClusterTap?.call(cluster);
+        }
+        return;
       });
     };
   }
